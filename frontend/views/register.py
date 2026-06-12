@@ -19,9 +19,11 @@ def render_register_page() -> None:
             name = st.text_input("Full Name", placeholder="Enter your full name")
             email = st.text_input("Email Address", placeholder="Enter your email")
             phone = st.text_input("Phone Number (optional)", placeholder="Enter your phone")
-            password = st.text_input("Password", type="password", placeholder="Minimum 6 characters")
+            password = st.text_input("Password", type="password", placeholder="Minimum 8 chars, with a letter and a number")
             confirm_password = st.text_input("Confirm Password", type="password", placeholder="Re-enter password")
-            role = st.selectbox("Role", ["Job Seeker", "Admin"])
+            # Admin is intentionally NOT selectable here. Admin accounts can only
+            # be created by an existing Admin via the Admin Management page.
+            role = st.selectbox("Register as", ["Job Seeker", "Recruiter"])
             submit = st.form_submit_button("Register", use_container_width=True)
 
             if submit:
@@ -29,8 +31,6 @@ def render_register_page() -> None:
                     st.error("Name, email, and password are required.")
                 elif password != confirm_password:
                     st.error("Passwords do not match.")
-                elif len(password) < 6:
-                    st.error("Password must be at least 6 characters.")
                 else:
                     result = register_user(name, email, password, phone, role)
                     if result["success"]:

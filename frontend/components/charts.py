@@ -169,3 +169,159 @@ def create_score_comparison_chart(ats_score: int, match_score: int) -> go.Figure
         height=300,
     )
     return fig
+
+
+def create_score_distribution_chart(scores: List[int], title: str, color: str = "#1f77b4") -> go.Figure:
+    """
+    Create a histogram showing the distribution of scores.
+
+    Args:
+        scores: List of numeric scores (0-100).
+        title: Chart title.
+        color: Bar color.
+
+    Returns:
+        Plotly figure object.
+    """
+    if not scores:
+        fig = go.Figure()
+        fig.add_annotation(text="No data available", showarrow=False, font_size=16)
+        fig.update_layout(title=title, height=350)
+        return fig
+
+    fig = go.Figure(go.Histogram(
+        x=scores,
+        nbinsx=10,
+        marker_color=color,
+        opacity=0.85,
+    ))
+    fig.update_layout(
+        title=title,
+        xaxis_title="Score",
+        yaxis_title="Number of Candidates",
+        xaxis=dict(range=[0, 100]),
+        bargap=0.05,
+        height=350,
+    )
+    return fig
+
+
+def create_candidate_ranking_chart(ranked: List[Dict], top_n: int = 10) -> go.Figure:
+    """
+    Create a horizontal bar chart of top candidates by overall rank score.
+
+    Args:
+        ranked: List of ranked candidate dicts (must include candidate_name, rank_score).
+        top_n: How many top candidates to display.
+
+    Returns:
+        Plotly figure object.
+    """
+    if not ranked:
+        fig = go.Figure()
+        fig.add_annotation(text="No ranked candidates yet", showarrow=False, font_size=16)
+        fig.update_layout(title="Candidate Ranking", height=400)
+        return fig
+
+    top = ranked[:top_n][::-1]  # reverse so #1 is at the top
+    names = [f"#{c.get('rank', i + 1)} {c['candidate_name']}" for i, c in enumerate(top[::-1])][::-1]
+    scores = [c["rank_score"] for c in top]
+
+    fig = go.Figure(go.Bar(
+        x=scores,
+        y=names,
+        orientation="h",
+        marker=dict(color=scores, colorscale="Blues"),
+        text=[f"{s:.1f}" for s in scores],
+        textposition="auto",
+    ))
+    fig.update_layout(
+        title=f"Top {min(top_n, len(ranked))} Candidates (Overall Score)",
+        xaxis_title="Overall Ranking Score",
+        xaxis=dict(range=[0, 100]),
+        height=max(400, len(top) * 35),
+    )
+    return fig
+
+
+def create_status_pie_chart(status_counts: Dict[str, int]) -> go.Figure:
+    """Create a pie chart of candidate status distribution."""
+    labels = list(status_counts.keys())
+    values = list(status_counts.values())
+
+    if sum(values) == 0:
+        fig = go.Figure()
+        fig.add_annotation(text="No candidates yet", showarrow=False, font_size=16)
+        fig.update_layout(title="Candidate Status", height=350)
+        return fig
+
+    fig = go.Figure(go.Pie(
+        labels=labels,
+        values=values,
+        hole=0.4,
+        marker=dict(colors=["#6c757d", "#ffc107", "#28a745", "#dc3545"]),
+    ))
+    fig.update_layout(title="Candidate Status Distribution", height=350)
+    return fig
+
+
+def create_time_series_chart(labels: List[str], values: List[int], title: str,
+                             y_title: str = "Count", color: str = "#1f77b4",
+                             fill: bool = True) -> go.Figure:
+    """
+    Create an interactive time-series line chart.
+
+    Args:
+        labels: X-axis labels (dates).
+        values: Y-axis values.
+        title: Chart title.
+        y_title: Y-axis label.
+        color: Line color.
+        fill: Whether to fill under the line.
+
+    Returns:
+        Plotly figure object.
+    """
+    if not labels:
+        fig = go.Figure()
+        fig.add_annotation(text="No data available", showarrow=False, font_size=16)
+        fig.update_layout(title=title, height=350)
+        return fig
+
+    fig = go.Figure(go.Scatter(
+        x=labels,
+        y=values,
+        mode="lines+markers",
+        line=dict(color=color, width=2),
+        fill="tozeroy" if fill else None,
+        fillcolor="rgba(31,119,180,0.1)" if fill else None,
+    ))
+    fig.update_layout(
+        title=title,
+        xaxis_title="Date",
+        yaxis_title=y_title,
+        height=350,
+        hovermode="x unified",
+    )
+    return fig
+
+
+def create_horizontal_bar_chart(pairs: List[Tuple[str, int]], title: str,
+                                 color: str = "#667eea") -> go.Figure:
+    """Create a horizontal bar chart from (label, value) pairs."""
+    if not pairs:
+        fig = go.Figure()
+        fig.add_annotation(text="No data available", showarrow=False, font_size=16)
+        fig.update_layout(title=title, height=350)
+        return fig
+
+    pairs = list(pairs)[::-1]  # largest on top
+    labels = [p[0] for p in pairs]
+    values = [p[1] for p in pairs]
+    fig = go.Figure(go.Bar(
+        x=values, y=labels, orientation="h",
+        marker=dict(color=values, colorscale="Viridis"),
+        text=values, textposition="auto",
+    ))
+    fig.update_layout(title=title, height=max(350, len(pairs) * 28))
+    return fig

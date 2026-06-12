@@ -28,7 +28,14 @@ def render_login_page() -> None:
                     if result["success"]:
                         set_session(result["user"])
                         st.success(result["message"])
-                        st.session_state["page"] = "dashboard"
+                        # Land on the role-appropriate default page
+                        role = result["user"].get("role", "Job Seeker")
+                        if role == "Recruiter":
+                            st.session_state["page"] = "recruiter_dashboard"
+                        elif role == "Admin":
+                            st.session_state["page"] = "admin_overview"
+                        else:
+                            st.session_state["page"] = "dashboard"
                         st.rerun()
                     else:
                         st.error(result["message"])

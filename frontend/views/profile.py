@@ -5,6 +5,7 @@ User profile management page.
 import streamlit as st
 from backend.auth.auth_service import get_current_user
 from backend.services.user_service import UserService
+from backend.services.feedback_service import FeedbackService, VALID_CATEGORIES
 
 
 def render_profile_page() -> None:
@@ -73,3 +74,28 @@ def render_profile_page() -> None:
                         st.rerun()
                     else:
                         st.error(result["message"])
+
+    # ------------------------------------------------------------------ #
+    # Feedback / support
+    # ------------------------------------------------------------------ #
+    st.markdown("---")
+    st.markdown("### 💬 Send Feedback")
+    with st.expander("Share a review, report a bug, request a feature, or open a ticket"):
+        feedback_service = FeedbackService()
+        with st.form("feedback_form"):
+            category = st.selectbox("Type", VALID_CATEGORIES)
+            subject = st.text_input("Subject")
+            message = st.text_area("Message")
+            rating = st.slider("Rating (for reviews)", 1, 5, 5)
+            if st.form_submit_button("Submit Feedback", use_container_width=True):
+                if not message.strip():
+                    st.error("Please enter a message.")
+                else:
+                    res = feedback_service.submit(
+                        user["user_id"], category, subject, message,
+                        rating if category == "Review" else None,
+                    )
+                    if res["success"]:
+                        st.success(res["message"])
+                    else:
+                        st.error(res["message"])
