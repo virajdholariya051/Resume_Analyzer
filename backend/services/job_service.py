@@ -15,15 +15,28 @@ class JobService:
         """Initialize job service."""
         self.skill_extractor = SkillExtractor()
 
-    def create_job(self, title: str, description: str, skills: str = "") -> Dict:
+    def create_job(
+        self,
+        title: str,
+        description: str,
+        skills: str = "",
+        company_name: str = "",
+        experience_required: str = "",
+        education_requirement: str = "",
+        created_by: Optional[int] = None,
+    ) -> Dict:
         """
         Create a new job description.
-        
+
         Args:
             title: Job title.
             description: Job description text.
             skills: Comma-separated required skills (auto-extracted if empty).
-        
+            company_name: Hiring company name.
+            experience_required: Required experience (e.g., "3+ years").
+            education_requirement: Required education (e.g., "Bachelor's").
+            created_by: User id of the recruiter/admin creating the job.
+
         Returns:
             Dictionary with operation result.
         """
@@ -41,6 +54,10 @@ class JobService:
                 job_title=title,
                 job_description_text=description,
                 required_skills=skills,
+                company_name=company_name or None,
+                experience_required=experience_required or None,
+                education_requirement=education_requirement or None,
+                created_by=created_by,
             )
             db.add(job)
             db.commit()
@@ -56,20 +73,25 @@ class JobService:
         finally:
             db.close()
 
+    def _to_dict(self, j: JobDescription) -> Dict:
+        """Serialize a JobDescription ORM object to a dict."""
+        return {
+            "job_id": j.job_id,
+            "job_title": j.job_title,
+            "job_description_text": j.job_description_text,
+            "required_skills": j.required_skills,
+            "company_name": j.company_name or "",
+            "experience_required": j.experience_required or "",
+            "education_requirement": j.education_requirement or "",
+            "created_by": j.created_by,
+        }
+
     def get_all_jobs(self) -> List[Dict]:
         """Get all job descriptions."""
         db = get_db()
         try:
             jobs = db.query(JobDescription).all()
-            return [
-                {
-                    "job_id": j.job_id,
-                    "job_title": j.job_title,
-                    "job_description_text": j.job_description_text,
-                    "required_skills": j.required_skills,
-                }
-                for j in jobs
-            ]
+            return [self._to_dict(j) for j in jobs]
         finally:
             db.close()
 
@@ -78,18 +100,20 @@ class JobService:
         db = get_db()
         try:
             j = db.query(JobDescription).filter(JobDescription.job_id == job_id).first()
-            if j:
-                return {
-                    "job_id": j.job_id,
-                    "job_title": j.job_title,
-                    "job_description_text": j.job_description_text,
-                    "required_skills": j.required_skills,
-                }
-            return None
+            return self._to_dict(j) if j else None
         finally:
             db.close()
 
-    def update_job(self, job_id: int, title: str, description: str, skills: str) -> Dict:
+    def update_job(
+        self,
+        job_id: int,
+        title: str,
+        description: str,
+        skills: str,
+        company_name: str = "",
+        experience_required: str = "",
+        education_requirement: str = "",
+    ) -> Dict:
         """Update an existing job description."""
         db = get_db()
         try:
@@ -100,6 +124,9 @@ class JobService:
             job.job_title = title
             job.job_description_text = description
             job.required_skills = skills
+            job.company_name = company_name or None
+            job.experience_required = experience_required or None
+            job.education_requirement = education_requirement or None
             db.commit()
             return {"success": True, "message": "Job updated successfully!"}
         except Exception as e:

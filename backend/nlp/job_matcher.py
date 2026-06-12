@@ -147,6 +147,36 @@ class JobMatcher:
 
         return score
 
+    def calculate_certification_match(self, resume_text: str, job_description: str = "") -> float:
+        """
+        Calculate certification match score (0-100).
+
+        Rewards presence of certifications and overlap with any certifications
+        mentioned in the job description.
+        """
+        text_lower = resume_text.lower()
+        has_cert_section = bool(re.search(r"(?i)(certif|license|credential)", resume_text))
+
+        if not has_cert_section:
+            return 0.0
+
+        score = 50.0  # base for having any certifications
+
+        # Common certification keywords
+        cert_keywords = [
+            "aws certified", "azure", "gcp", "pmp", "scrum master", "cissp",
+            "comptia", "cisco", "ccna", "oracle certified", "google cloud",
+            "kubernetes", "terraform", "tensorflow", "data science", "six sigma",
+        ]
+        found = sum(1 for kw in cert_keywords if kw in text_lower)
+        score += min(30, found * 10)
+
+        # Bonus if job description mentions certifications and resume has them
+        if job_description and re.search(r"(?i)(certif|license)", job_description):
+            score += 20
+
+        return min(100.0, score)
+
     def _get_recommendation(self, match_percentage: int) -> str:
         """Get recommendation based on match percentage."""
         if match_percentage >= 80:

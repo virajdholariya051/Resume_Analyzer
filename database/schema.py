@@ -4,7 +4,7 @@ SQLAlchemy ORM Models for the Resume Analyzer database.
 
 from datetime import datetime
 from sqlalchemy import (
-    Column, Integer, String, Text, DateTime, ForeignKey, Table
+    Column, Integer, String, Text, DateTime, ForeignKey, Table, Float, Boolean
 )
 from sqlalchemy.orm import relationship
 from database.database import Base
@@ -20,6 +20,7 @@ class User(Base):
     password = Column(String(255), nullable=False)
     role = Column(String(50), default="Job Seeker")
     phone = Column(String(15), nullable=True)
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
@@ -39,6 +40,16 @@ class Resume(Base):
     resume_text = Column(Text, nullable=False)
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
 
+    # Recruiter / candidate management fields
+    candidate_name = Column(String(150), nullable=True)
+    candidate_email = Column(String(150), nullable=True)
+    status = Column(String(50), default="New")  # New, Under Review, Shortlisted, Rejected
+    file_hash = Column(String(64), nullable=True)  # for duplicate detection
+    education = Column(Text, nullable=True)
+    experience = Column(Text, nullable=True)
+    certifications = Column(Text, nullable=True)
+    projects = Column(Text, nullable=True)
+
     # Relationships
     user = relationship("User", back_populates="resumes")
     analysis_results = relationship("AnalysisResult", back_populates="resume", cascade="all, delete-orphan")
@@ -56,6 +67,12 @@ class JobDescription(Base):
     job_title = Column(String(100), nullable=False)
     job_description_text = Column(Text, nullable=False)
     required_skills = Column(Text, nullable=False)
+
+    # Extended recruiter fields
+    company_name = Column(String(150), nullable=True)
+    experience_required = Column(String(100), nullable=True)
+    education_requirement = Column(String(150), nullable=True)
+    created_by = Column(Integer, ForeignKey("users.user_id"), nullable=True)
 
     # Relationships
     analysis_results = relationship("AnalysisResult", back_populates="job_description", cascade="all, delete-orphan")
@@ -76,6 +93,14 @@ class AnalysisResult(Base):
     resume_id = Column(Integer, ForeignKey("resumes.resume_id"), nullable=False)
     job_id = Column(Integer, ForeignKey("job_descriptions.job_id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Component match scores (for ranking)
+    skill_match = Column(Integer, default=0)
+    experience_match = Column(Integer, default=0)
+    education_match = Column(Integer, default=0)
+    certification_match = Column(Integer, default=0)
+    keyword_match = Column(Integer, default=0)
+    rank_score = Column(Float, default=0.0)
 
     # Relationships
     resume = relationship("Resume", back_populates="analysis_results")
@@ -107,3 +132,67 @@ resume_skills_table = Table(
     Column("resume_id", Integer, ForeignKey("resumes.resume_id"), primary_key=True),
     Column("skill_id", Integer, ForeignKey("skills.skill_id"), primary_key=True),
 )
+
+
+class AuditLog(Base):
+    """Audit log for tracking sensitive administrative actions."""
+    __tablename__ = "audit_logs"
+
+    log_id = Column(Integer, primary_key=True, autoincrement=True)
+    admin_id = Column(Integer, ForeignKey("users.user_id"), nullable=True)
+    action = Column(Text, nullable=False)
+    target_user_id = Column(Integer, nullable=True)
+    ip_address = Column(String(64), nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self) -> str:
+        return f"<AuditLog(log_id={self.log_id}, action='{self.action}')>"
+
+
+class AILog(Base):
+    """Log of AI/NLP analysis requests for monitoring."""
+    __tablename__ = "ai_logs"
+
+    ai_log_id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, nullable=True)
+    resume_id = Column(Integer, nullable=True)
+    action = Column(String(100), nullable=False)        # e.g., "ATS Analysis"
+    status = Column(String(20), default="success")       # success | failed
+    processing_ms = Column(Integer, default=0)           # processing time in ms
+    message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self) -> str:
+        return f"<AILog(id={self.ai_log_id}, action='{self.action}', status='{self.status}')>"
+
+
+class Feedback(Base):
+    """User feedback: reviews, bug reports, feature requests, support tickets."""
+    __tablename__ = "feedback"
+
+    feedback_id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, nullable=True)
+    category = Column(String(30), default="Review")      # Review | Bug | Feature | Ticket
+    subject = Column(String(200), nullable=True)
+    message = Column(Text, nullable=False)
+    rating = Column(Integer, nullable=True)              # 1-5 for reviews
+    status = Column(String(20), default="Open")          # Open | Resolved | Closed
+    admin_reply = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self) -> str:
+        return f"<Feedback(id={self.feedback_id}, category='{self.category}', status='{self.status}')>"
+
+
+class SystemSetting(Base):
+    """Key/value store for configurable system settings."""
+    __tablename__ = "system_settings"
+
+    setting_id = Column(Integer, primary_key=True, autoincrement=True)
+    key = Column(String(100), unique=True, nullable=False)
+    value = Column(Text, nullable=True)
+    category = Column(String(50), default="General")
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self) -> str:
+        return f"<SystemSetting(key='{self.key}', value='{self.value}')>"

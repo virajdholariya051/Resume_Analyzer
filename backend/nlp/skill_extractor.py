@@ -5,6 +5,7 @@ Identifies both technical and soft skills from resume text.
 
 import re
 from typing import List, Dict, Tuple
+from functools import lru_cache
 
 
 # Comprehensive skill database
@@ -66,16 +67,7 @@ class SkillExtractor:
         Returns:
             List of identified skill names.
         """
-        found_skills = []
-        text_lower = text.lower()
-
-        for skill in self.all_skills:
-            # Use word boundary matching to avoid partial matches
-            pattern = r"\b" + re.escape(skill.lower()) + r"\b"
-            if re.search(pattern, text_lower):
-                found_skills.append(skill)
-
-        return list(set(found_skills))
+        return list(_cached_extract_skills(text))
 
     def extract_technical_skills(self, text: str) -> List[str]:
         """Extract only technical skills."""
@@ -141,3 +133,19 @@ class SkillExtractor:
         resume_lower = {s.lower() for s in resume_skills}
         matched = sum(1 for s in required_skills if s.lower() in resume_lower)
         return round((matched / len(required_skills)) * 100, 1)
+
+
+# Module-level cached skill extraction for performance during bulk processing.
+_ALL_SKILLS = TECHNICAL_SKILLS + SOFT_SKILLS
+
+
+@lru_cache(maxsize=512)
+def _cached_extract_skills(text: str) -> Tuple[str, ...]:
+    """Cached skill extraction. Returns a tuple (hashable) of unique skills."""
+    found = []
+    text_lower = text.lower()
+    for skill in _ALL_SKILLS:
+        pattern = r"\b" + re.escape(skill.lower()) + r"\b"
+        if re.search(pattern, text_lower):
+            found.append(skill)
+    return tuple(sorted(set(found)))
